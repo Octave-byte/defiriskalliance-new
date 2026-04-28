@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeFi Risk Alliance | Methodology</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .logo {
+            max-width: 400px;
+        }
+
+        .page-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2.2rem, 4.5vw, 3rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease 0.1s forwards;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 56px;
+            max-width: 680px;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease 0.2s forwards;
+        }
+
+        .section {
+            margin-bottom: 64px;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease 0.3s forwards;
+        }
+
+        .section h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(1.6rem, 2.5vw, 2rem);
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -0.01em;
+        }
+
+        .section p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .section p strong { color: var(--text-primary); font-weight: 500; }
+
+        .section a {
+            color: var(--text-primary);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 28px 0;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px 20px;
+        }
+
+        .card-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .card h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        .stage-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 28px 0;
+        }
+
+        .stage-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left-width: 4px;
+            border-radius: 8px;
+            padding: 24px 20px;
+        }
+
+        .stage-card.s0 { border-left-color: var(--stage-0); }
+        .stage-card.s1 { border-left-color: var(--stage-1); }
+        .stage-card.s2 { border-left-color: var(--stage-2); }
+
+        .stage-card .stage-num {
+            font-family: 'Syne', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .stage-card.s0 .stage-num { color: var(--stage-0); }
+        .stage-card.s1 .stage-num { color: var(--stage-1); }
+        .stage-card.s2 .stage-num { color: var(--stage-2); }
+
+        .stage-card h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stage-card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .matrix-wrap { margin: 28px 0; overflow-x: auto; }
+
+        .matrix {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+
+        .matrix th, .matrix td {
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .matrix th {
+            background: var(--bg-card);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .matrix td {
+            color: var(--text-secondary);
+        }
+
+        .matrix td.row-header {
+            text-align: left;
+            font-weight: 500;
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+
+        .modes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            margin: 24px 0;
+        }
+
+        .modes-table th, .modes-table td {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        .modes-table th {
+            background: var(--bg-card);
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .modes-table td { color: var(--text-secondary); }
+        .modes-table td:first-child { color: var(--text-primary); font-weight: 500; }
+
+        .raters-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            margin: 24px 0;
+        }
+
+        .raters-table th, .raters-table td {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .raters-table th {
+            background: var(--bg-card);
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .raters-table td { color: var(--text-secondary); }
+        .raters-table td:first-child { color: var(--text-primary); font-weight: 500; }
+
+        .raters-table code {
+            font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        .note {
+            background: var(--bg-card);
+            border-left: 3px solid var(--text-secondary);
+            padding: 16px 20px;
+            margin: 24px 0;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .note strong { color: var(--text-primary); }
+
+        .ratchet-example {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 24px 0;
+            font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.92rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .ratchet-example .label {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .ratchet-example .stage-pill {
+            display: inline-block;
+            min-width: 22px;
+            text-align: center;
+            border-radius: 4px;
+            padding: 1px 8px;
+            font-weight: 700;
+            font-family: 'Syne', sans-serif;
+            color: var(--bg-primary);
+        }
+
+        .ratchet-example .stage-pill.s0 { background: var(--stage-0); }
+        .ratchet-example .stage-pill.s1 { background: var(--stage-1); }
+        .ratchet-example .stage-pill.s2 { background: var(--stage-2); }
+
+        @media (max-width: 680px) {
+            .card-grid,
+            .stage-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <nav class="right-sidebar">
+            <a href="index.html" class="nav-link">Charter</a>
+            <a href="ratings.html" class="nav-link">Ratings</a>
+            <a href="https://github.com/Octave-byte/defiriskalliance" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
+        </nav>
+
+        <main class="main-content">
+            <div class="logo-container">
+                <a href="index.html"><img src="assets/logo.png" alt="DeFi Risk Alliance" class="logo"></a>
+            </div>
+
+            <h1 class="page-title">How We Score Risk</h1>
+            <p class="page-subtitle">DRA v3.0 is a discrete, criterion-based methodology. Strategies are graded on a 0/1/2 ladder &mdash; not a continuous score &mdash; with a single failing cell ratcheting the whole rating to the worst stage. Every assumption is public, every attestation is auditable.</p>
+
+            <div class="section">
+                <p class="section-label">Step 1</p>
+                <h2>Decompose the Strategy</h2>
+                <p>Every strategy is broken down into up to three <strong>layers</strong>, each representing a different level of the stack you are exposed to.</p>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="card-icon">&#9672;</span>
+                        <h3>Asset</h3>
+                        <p>The underlying token itself. Is USDC safe? How stable is stETH? What backs wBTC?</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-icon">&#9678;</span>
+                        <h3>Market</h3>
+                        <p>The lending or borrowing venue where the asset is deployed &mdash; Aave, Compound, Fluid, etc.</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-icon">&#9670;</span>
+                        <h3>Vault</h3>
+                        <p>The strategy vault or CDP that allocates capital across markets &mdash; Morpho, Yearn, Maker, etc.</p>
+                    </div>
+                </div>
+
+                <p>Not every strategy uses all three. The applicable layers are selected by <strong>composition mode</strong>:</p>
+
+                <table class="modes-table">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Applicable layers</th>
+                            <th>Typical example</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>A</td><td>asset &middot; market &middot; vault</td><td>Vault routing through a money market (Morpho on Aave)</td></tr>
+                        <tr><td>B</td><td>asset &middot; vault</td><td>Native vault that holds the asset directly</td></tr>
+                        <tr><td>C</td><td>asset &middot; market</td><td>Direct deposit into a money market (Aave reserve)</td></tr>
+                        <tr><td>D</td><td>asset &middot; meta-vault &middot; underlying vaults</td><td>Vault of vaults &mdash; the worst underlying vault still ratchets the rating</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <hr class="divider">
+
+            <div class="section">
+                <p class="section-label">Step 2</p>
+                <h2>Score on Three Components</h2>
+                <p>Each layer is independently evaluated on three <strong>components</strong>. Together they form a 3 &times; 3 matrix of stages.</p>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="card-icon">&#128274;</span>
+                        <h3>Security</h3>
+                        <p>Smart-contract maturity, audit coverage, bug bounty, and clean-track-record (Lindy).</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-icon">&#9881;</span>
+                        <h3>Operations</h3>
+                        <p>Governance posture, timelocks, oracle quality, documentation, and disclosure.</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-icon">&#9878;</span>
+                        <h3>Strategy &amp; Economics</h3>
+                        <p>Peg, collateral, liquidity depth, parameter conservatism, and strategy complexity.</p>
+                    </div>
+                </div>
+
+                <p>Every cell of the matrix carries a list of named, monotonic <strong>criteria</strong> &mdash; concrete, falsifiable yes/no questions. Stage 1 has its own criteria; Stage 2 adds further criteria on top. The full registry lives in <a href="https://github.com/Octave-byte/defiriskalliance/blob/main/methodology/criteria.py">methodology/criteria.py</a>.</p>
+
+                <div class="matrix-wrap">
+                    <table class="matrix">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Security</th>
+                                <th>Operations</th>
+                                <th>Strategy &amp; Economics</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="row-header">Asset</td><td>Stage 0 / 1 / 2</td><td>Stage 0 / 1 / 2</td><td>Stage 0 / 1 / 2</td></tr>
+                            <tr><td class="row-header">Market</td><td>Stage 0 / 1 / 2</td><td>Stage 0 / 1 / 2</td><td>Stage 0 / 1 / 2</td></tr>
+                            <tr><td class="row-header">Vault</td><td>Stage 0 / 1 / 2</td><td>Stage 0 / 1 / 2</td><td>Stage 0 / 1 / 2</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="section">
+                <p class="section-label">Step 3</p>
+                <h2>Three Stages, Ratchet to the Worst</h2>
+                <p>There is no continuous 0&ndash;10 number. A cell sits at one of three discrete stages.</p>
+
+                <div class="stage-grid">
+                    <div class="stage-card s0">
+                        <div class="stage-num">0</div>
+                        <h3>Unproven</h3>
+                        <p>At least one Stage 1 criterion is unsatisfied or unattested. The cell does not meet a baseline of safety.</p>
+                    </div>
+                    <div class="stage-card s1">
+                        <div class="stage-num">1</div>
+                        <h3>Baseline</h3>
+                        <p>Every Stage 1 criterion is satisfied. The cell meets a baseline of safety and disclosure.</p>
+                    </div>
+                    <div class="stage-card s2">
+                        <div class="stage-num">2</div>
+                        <h3>Hardened</h3>
+                        <p>Every Stage 1 <em>and</em> Stage 2 criterion is satisfied. The cell is hardened &mdash; multi-audit, long-Lindy, conservative.</p>
+                    </div>
+                </div>
+
+                <p>Cells, layers, and the strategy roll up by the same simple rule &mdash; <strong>min-of-children</strong>:</p>
+
+                <div class="ratchet-example">
+                    <div><span class="label">component_stage</span> = max N where every criterion at stages 1..N is <em>satisfied</em></div>
+                    <div><span class="label">layer_stage</span> = min(component_stage) over the three components</div>
+                    <div><span class="label">strategy_stage</span> = min(layer_stage) over the layers applicable to the mode</div>
+                </div>
+
+                <p>This is the <strong>ratchet</strong>: a single failing cell pulls the whole strategy down to the worst stage. There is no averaging, no rounding, no compensating a 2 with a 0. The roll-up logic is implemented in <a href="https://github.com/Octave-byte/defiriskalliance/blob/main/methodology/compose.py">methodology/compose.py</a>.</p>
+
+                <p><strong>Example.</strong> A strategy with the matrix below:</p>
+
+                <div class="matrix-wrap">
+                    <table class="matrix">
+                        <thead>
+                            <tr><th></th><th>Security</th><th>Operations</th><th>Strategy &amp; Economics</th><th>layer</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="row-header">Asset</td><td>2</td><td>2</td><td>2</td><td><span class="ratchet-example stage-pill s2" style="background:var(--stage-2);color:var(--bg-primary);padding:1px 8px;border-radius:4px;font-weight:700;">2</span></td></tr>
+                            <tr><td class="row-header">Market</td><td>2</td><td>2</td><td>1</td><td><span class="ratchet-example stage-pill s1" style="background:var(--stage-1);color:var(--bg-primary);padding:1px 8px;border-radius:4px;font-weight:700;">1</span></td></tr>
+                            <tr><td class="row-header">Vault</td><td>1</td><td>0</td><td>1</td><td><span class="ratchet-example stage-pill s0" style="background:var(--stage-0);color:var(--bg-primary);padding:1px 8px;border-radius:4px;font-weight:700;">0</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>The single zero in <code>vault.operations</code> drives <code>vault</code> to Stage 0, which drives the <strong>strategy to Stage 0</strong> regardless of how strong the asset and market layers are.</p>
+            </div>
+
+            <hr class="divider">
+
+            <div class="section">
+                <p class="section-label">Trust Model</p>
+                <h2>Default to Worse</h2>
+                <p>No single rater defines the truth. Multiple independent providers submit <strong>attestations</strong> against the named criteria. Each attestation is one of <code>verified</code>, <code>violated</code>, or <code>unknown</code>, and carries the source plus a short evidence string.</p>
+
+                <p>Attestations are merged with one rule, taken straight from <a href="https://github.com/Octave-byte/defiriskalliance/blob/main/methodology/merge.py">methodology/merge.py</a>:</p>
+
+                <div class="ratchet-example">
+                    satisfied = bool(verifications) <span class="label">and not</span> violations
+                </div>
+
+                <p>In words:</p>
+
+                <ul style="list-style: none; padding-left: 0; margin: 16px 0;">
+                    <li style="margin-bottom: 12px; color: var(--text-secondary); padding-left: 24px; position: relative;"><span style="position:absolute;left:0;color:var(--text-primary);font-weight:bold;">&middot;</span>One <code>violated</code> beats <em>any</em> number of <code>verified</code> &mdash; opacity-resistant, but also pessimistic when raters disagree.</li>
+                    <li style="margin-bottom: 12px; color: var(--text-secondary); padding-left: 24px; position: relative;"><span style="position:absolute;left:0;color:var(--text-primary);font-weight:bold;">&middot;</span>No attestations at all &rarr; the criterion is unsatisfied. Missing data is a risk factor, not a neutral fact.</li>
+                    <li style="margin-bottom: 12px; color: var(--text-secondary); padding-left: 24px; position: relative;"><span style="position:absolute;left:0;color:var(--text-primary);font-weight:bold;">&middot;</span>Disagreements are not averaged away. They surface in the per-entry attestation list and are the entry-point for the public challenge process.</li>
+                </ul>
+
+                <div class="note">
+                    <strong>Why this rule?</strong> Averaging incentivises raters to file shallow <code>verified</code> attestations to dilute red flags. Default-to-worse forces the rating to surface at least one source of evidence that it is wrong, in the open.
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="section">
+                <p class="section-label">Independent Raters</p>
+                <h2>Who Files Attestations</h2>
+                <p>A rater can cover as little as <strong>one criterion in one cell</strong> &mdash; there is no requirement to be exhaustive. Each adapter declares its supported criteria, fetches its data, and emits attestations. The current production raters in this repo:</p>
+
+                <table class="raters-table">
+                    <thead>
+                        <tr>
+                            <th>Rater</th>
+                            <th>Where it attests</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Pharos</td>
+                            <td>Asset layer for stablecoins &mdash; bluechip ratings, peg stability, deep liquidity from <code>totalTvlUsd</code>.</td>
+                            <td><a href="https://github.com/Octave-byte/defiriskalliance/blob/main/providers/pharos.py">providers/pharos.py</a></td>
+                        </tr>
+                        <tr>
+                            <td>Yearn Risk Curation</td>
+                            <td>Market and Vault layers &mdash; security / operations / economics derived from Yearn's published curation reports (1&ndash;5 scale bucketed into S1/S2 thresholds).</td>
+                            <td><a href="https://github.com/Octave-byte/defiriskalliance/blob/main/providers/yearn.py">providers/yearn.py</a></td>
+                        </tr>
+                        <tr>
+                            <td>Philidor</td>
+                            <td>Vault layer (and Market when <code>philidor_fill_market_from_vault</code> is set) &mdash; audits, timelocks, curator accountability.</td>
+                            <td><a href="https://github.com/Octave-byte/defiriskalliance/blob/main/providers/philidor.py">providers/philidor.py</a></td>
+                        </tr>
+                        <tr>
+                            <td>Vaultscan</td>
+                            <td>All three layers &mdash; numeric scores from the Vaultscan Supabase index, thresholded against the published S1/S2 cut-offs.</td>
+                            <td><a href="https://github.com/Octave-byte/defiriskalliance/blob/main/providers/vaultscan.py">providers/vaultscan.py</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>Adapter weights are equal in v3.0 &mdash; the resolution rule is binary, so weights do not currently feed into the merge. They are reserved for future tie-break or confidence work.</p>
+            </div>
+
+            <hr class="divider">
+
+            <div class="section" style="text-align: center; padding-top: 16px;">
+                <p class="section-label">Full specification</p>
+                <p>The full criterion registry, mode definitions, and adapter contracts live in the open repository. Start at <a href="https://github.com/Octave-byte/defiriskalliance/blob/main/methodology/criteria.py">methodology/criteria.py</a> for the named criteria, and <a href="https://github.com/Octave-byte/defiriskalliance/blob/main/methodology/engine.py">methodology/engine.py</a> for the engine that wires raters to the matrix.</p>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

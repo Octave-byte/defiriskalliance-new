@@ -1,201 +1,140 @@
-# DeFi Vault Scoring Methodology
+# DeFi Risk Alliance — aggregate stage scoring (v3.0)
 
-This repository defines a comprehensive methodology for scoring DeFi Vaults, providing a structured framework for risk assessment and rating.
+A Python library that aggregates external risk providers into a single DeFi
+**strategy stage** (`0`, `1`, or `2`) using the **DeFi Risk Alliance** v3.0
+methodology. The published spec lives at
+[`defiriskalliance/docs/METHODOLOGY.md`](https://github.com/Octave-byte/defiriskalliance/blob/main/docs/METHODOLOGY.md);
+this repository is the reference implementation.
 
-## Overview
+## What changed vs v2.2
 
-The DeFi Vault scoring methodology evaluates vaults through a multi-layered approach that considers:
-- **Underlying Markets**: The markets that compose the vault
-- **Assets**: The underlying assets in those markets
-- **Protocols**: The protocols powering the markets
-- **Oracles**: The oracles providing price feeds
-- **Vault-Level Metrics**: Protocol, liquidity, governance, and other vault-specific factors
+The 0–10 numeric score is gone. Every cell is now scored as a discrete
+**Stage 0 / 1 / 2**, computed from an open registry of named criteria, and
+rolled up by the *weakest-link* rule.
 
-## Methodology Structure
+| | DRA v2.2 | DRA v3.0 |
+|--|---------|----------|
+| Cell value | 0–10 weighted average | Stage 0/1/2, max stage whose criteria are all satisfied |
+| Layer rollup | Weighted average of axes | `min` over the three components |
+| Strategy rollup | Weighted average of layers | `min` over the layers applicable to the mode |
+| Provider output | `CellContribution(score=…)` | `CriterionAttestation(verdict=…)` |
 
-### 1. Underlying Markets
+## Layers, components, stages
 
-Each market in a vault is scored based on four pillars (each rated 0-1):
-- **Liquidity**: Market liquidity depth
-- **Volatility**: Price volatility risk
-- **Leverage**: Leverage exposure
-- **Second Order Effect**: Cascading risk effects
+- **Layers:** `asset`, `market`, `vault` (plus optional meta-vault, recursive).
+- **Components:** `security` (op-sec + smart-contract), `operations` (legals,
+  governance, oracles, withdrawal mechanics), `strategy_economics`
+  (peg/collateral, market parameters, vault strategy risk).
+- **Stages:**
+  - **0** — Inadequate / Unverified. Default-to-worse.
+  - **1** — Production-grade. Audited, multisig + timelock, public docs,
+    conservative parameters.
+  - **2** — Mature / Decentralised. Long Lindy, multiple audits, immutable or
+    long-timelock governance, transparent reserves.
 
-### 2. Market Rating Components
+Each (layer, component) cell publishes an explicit set of criteria for Stage 1
+and Stage 2 — see [`methodology/criteria.py`](methodology/criteria.py).
 
-A market's rating combines:
-- The product of the four market pillars
-- Asset rating (r1)
-- Protocol rating (r2)
-- Oracle rating (r3)
-
-**Adjusted Market Score Formula:**
-```
-Adjusted Market Score = 0.4 × (∏si)^β + 0.4 × r1 + 0.1 × r2 + 0.1 × r3
-```
-Where:
-- `si` = score of each market pillar (Liquidity, Volatility, Leverage, Second Order Effect)
-- `r1` = Asset rating
-- `r2` = Protocol rating
-- `r3` = Oracle rating
-- `β` = adjustment factor (typically 1, but can be calibrated)
-
-### 3. Asset Ratings
-
-Assets are scored on 11 criteria across 4 categories:
-
-| Category | Criterion | Weight |
-|----------|-----------|--------|
-| Quality | Creditworthiness/resilience of reserves | 0.125 |
-| Quality | Historical peg performance | 0.125 |
-| Quality | Market confidence | 0.125 |
-| Quality | Level of Reserves backing | 0.125 |
-| Compliance | Regulatory status of issuer | 0.1 |
-| Tech | Smart contract audits | 0.05 |
-| Tech | Safety of custody arrangements | 0.1 |
-| Tech | Complexity of the asset | 0.05 |
-| Transparency | Verifiability of reserve assets | 0.1 |
-| Transparency | Track record of custodians | 0.05 |
-| Transparency | User entitlement definition | 0.05 |
-
-Each criterion is scored 0-1, and the final asset rating is the weighted sum.
-
-### 4. Protocol Ratings
-
-Protocols are scored on three factors:
-
-| Factor | Weight |
-|--------|--------|
-| Audits | 0.4 |
-| Hacks | 0.3 |
-| Bug Bounty | 0.3 |
-
-Each factor is scored 0-1, with the final protocol rating being the weighted sum.
-
-### 5. Oracle Ratings
-
-Oracles are scored on two factors:
-
-| Factor | Weight |
-|--------|--------|
-| Hardcoded Oracle | 0.5 |
-| Vendor/Config Uncertainty | 0.5 |
-
-Each factor is scored 0-1, with the final oracle rating being the weighted sum.
-
-### 6. Vault-Level Ratings
-
-Vaults are scored on six criteria:
-
-| Category | Subcategory | Weight |
-|----------|-------------|--------|
-| Tech | Protocol | 0.2 |
-| Liquidity | Liquidity | 0.1 |
-| Liquidity | Concentration of holders | 0.1 |
-| Governance | Governance structure | 0.2 |
-| Governance | Curator reputation | 0.2 |
-| Governance | Timelock | 0.2 |
-
-Each criterion is scored 0-1, and the final vault rating is the weighted sum.
-
-### 7. Final Vault Score
-
-The final vault score combines market scores (weighted by their share in the vault) and vault-level rating:
-
-```
-Final Vault Score = 0.85 × ∑(Market Score_i × Share in Vault_i) + 0.15 × Vault Rating
-```
-
-## Score Providers
-
-The methodology supports multiple score providers, each specializing in different segments:
-
-| Provider | Can Score |
-|----------|-----------|
-| **stablewatch** | Protocols, Assets |
-| **exponential.fi** | [To be defined] |
-| **vaults.fyi** | [To be defined] |
-| **credora** | Assets, Protocols, Vaults, Markets |
-| **particula** | Protocols, Assets |
-
-The final rating is a weighted sum of provider scores, where weights reflect the credibility assigned to each provider for each segment.
-
-## Getting Started
-
-### Installation
+## Quick start
 
 ```bash
 pip install -r requirements.txt
+python examples/dra_score.py
 ```
-
-### Basic Usage
 
 ```python
-from methodology.scoring import VaultScorer
-from methodology.models import Vault, Market, Asset, Protocol, Oracle
+from methodology import DRAEngine, StrategyContext
+from providers import DefiscanRater, PharosRater, XerberusRater
 
-# Create a vault scorer
-scorer = VaultScorer()
-
-# Define your vault structure
-vault = Vault(
-    markets=[
-        Market(
-            share=0.5,
-            liquidity=0.8,
-            volatility=0.6,
-            leverage=0.7,
-            second_order_effect=0.5,
-            asset=Asset(...),
-            protocol=Protocol(...),
-            oracle=Oracle(...)
-        )
-    ],
-    protocol_score=0.8,
-    liquidity_score=0.7,
-    concentration_score=0.6,
-    governance_structure=0.9,
-    curator_reputation=0.8,
-    timelock=0.7
+engine = DRAEngine([DefiscanRater(), PharosRater(), XerberusRater()])
+ctx = StrategyContext(
+    mode="C",
+    asset_is_stablecoin=True,
+    xerberus_asset_symbol="USDC",
+    pharos_stablecoin_id="usdc-circle",
+    defiscan_market_slug="aave-v3",
+    xerberus_protocol_slug="aave-v3",
 )
-
-# Calculate score
-score = scorer.calculate_vault_score(vault)
+result = engine.score(ctx)
+print(result.strategy_stage, result.layer_stages)
+for status in result.unsatisfied_criteria():
+    print(status.criterion.id, status.criterion.description)
 ```
 
-## Provider Participation
+## Composition modes
 
-See [PROVIDER_GUIDE.md](PROVIDER_GUIDE.md) for detailed instructions on how to participate as a score provider.
+| Mode | Layers | Strategy stage |
+|------|--------|----------------|
+| A — Vault strategy | asset + market + vault | `min(asset, market, vault)` |
+| B — Direct vault | asset + vault | `min(asset, vault)` |
+| C — Market position | asset + market | `min(asset, market)` |
+| D — Meta-vault | asset + meta-vault + each underlying vault | `min(asset, meta_vault, min(underlying))` |
 
-## Repository Structure
+## Bundled providers (`providers/`)
 
+| Provider | Anchors |
+|----------|---------|
+| `XerberusRater` | Public dendrogram → asset operations + economics; protocol → market & vault security/operations/economics. |
+| `PharosRater` | `PHAROS_API_KEY`. Bluechip grade → asset security; report-card dimensions → asset operations + economics; DEX liquidity → asset economics. |
+| `PhilidorRater` | Public REST → vault (and optional market) security/operations/economics; non-stable asset cells. |
+| `WebacyRater` | `WEBACY_API_KEY`. Vault overall risk → vault security verification or violation. |
+| `StakingRewardsRater` | `STAKING_REWARDS_API_KEY`. Per-strategy security/operations/strategy → market + vault. |
+| `YearnCurationRater` | HTML curation reports → market + vault. |
+| `DefiscanRater` | Curated DeFiScan stage map → market.operations and vault.operations criteria. |
+
+Each provider keeps its mapping table at the top of its file, so changes are
+visible in code review.
+
+## How aggregation works
+
+For every criterion `c`:
+
+- If at least one provider files `verified` AND no provider files `violated` →
+  `c` is satisfied.
+- If any provider files `violated` → `c` is unsatisfied (default-to-worse).
+- If no attestations exist or all are `unknown` → `c` is unsatisfied.
+
+Then `cell_stage = max N ∈ {0,1,2}` such that every criterion at every stage
+`1..N` for that cell is satisfied. Layer = `min` over components. Strategy =
+`min` over applicable layers.
+
+## Tests
+
+```bash
+pytest tests/ -q
 ```
-.
-├── README.md                 # This file
-├── PROVIDER_GUIDE.md        # Guide for score providers
-├── methodology/              # Core scoring methodology
-│   ├── __init__.py
-│   ├── models.py            # Data models
-│   ├── scoring.py           # Core scoring logic
-│   └── providers.py         # Provider interface
-├── providers/                # Provider implementations
-│   ├── __init__.py
-│   ├── stablewatch.py
-│   ├── credora.py
-│   ├── particula.py
-│   └── examples/            # Example provider implementations
-├── examples/                 # Usage examples
-│   ├── basic_usage.py
-│   └── provider_integration.py
-└── tests/                    # Test suite
-    ├── test_scoring.py
-    └── test_providers.py
+
+## Docs
+
+- [`PROVIDER_GUIDE.md`](PROVIDER_GUIDE.md) — writing a provider adapter.
+- [`methodology/criteria.py`](methodology/criteria.py) — the rubric.
+
+## Public site (`docs/`)
+
+The repository ships a static GitHub Pages site under [`docs/`](docs/):
+
+- [`docs/index.html`](docs/index.html) — Charter (renders [`docs/content.md`](docs/content.md) via `marked.js`).
+- [`docs/methodology.html`](docs/methodology.html) — Methodology, written against the v3.0 Stage 0/1/2 ratchet implemented here.
+- [`docs/ratings.html`](docs/ratings.html) — A snapshot of ratings for a curated set of vaults, fetched client-side from [`docs/ratings.json`](docs/ratings.json).
+
+Regenerate the snapshot whenever raters or the curated entry list change:
+
+```bash
+python3 examples/dra_site_snapshot.py
 ```
 
-## Contributing
+This calls the engine with the four production raters (Pharos, Yearn Risk
+Curation, Philidor, Vaultscan) over the entries in
+[`examples/dra_site_snapshot.py`](examples/dra_site_snapshot.py) and writes a
+small JSON file consumed by `ratings.html`. API keys are loaded from `.env`.
 
-See [PROVIDER_GUIDE.md](PROVIDER_GUIDE.md) for information on how to contribute as a score provider.
+Preview the site locally:
 
-## License
+```bash
+python3 -m http.server --directory docs 8000
+# open http://localhost:8000
+```
 
-
+Deploy via GitHub Pages: **Settings → Pages → Build from branch → `main` /
+`docs`**. No CI is required for v1; the snapshot is regenerated locally and
+committed alongside any methodology or rater changes.

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeFi Risk Alliance | Charter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .main-content {
+            max-width: 800px;
+        }
+
+        .logo-container {
+            margin-bottom: 80px;
+        }
+
+        #content {
+            opacity: 0;
+            animation: fadeInUp 0.8s ease 0.2s forwards;
+        }
+
+        #content h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 48px;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        #content h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(1.8rem, 3vw, 2.2rem);
+            font-weight: 700;
+            margin-top: 64px;
+            margin-bottom: 24px;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+        }
+
+        #content h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-top: 40px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        #content p {
+            margin-bottom: 24px;
+            color: var(--text-secondary);
+        }
+
+        #content strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        #content blockquote {
+            border-left: 2px solid var(--text-secondary);
+            padding-left: 24px;
+            margin: 32px 0;
+            font-style: italic;
+        }
+
+        #content blockquote p {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        #content ul {
+            list-style: none;
+            margin: 24px 0;
+            padding-left: 0;
+        }
+
+        #content ul li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        #content ul li::before {
+            content: '\2022';
+            position: absolute;
+            left: 0;
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+
+        #content hr {
+            border: none;
+            height: 1px;
+            background: var(--border);
+            margin: 48px 0;
+        }
+
+        .charter-intro p {
+            font-size: 1.15rem;
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .read-more-container {
+            margin-top: 48px;
+            margin-bottom: 24px;
+        }
+
+        .read-more-btn {
+            background: transparent;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-primary);
+            padding: 16px 32px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .read-more-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--text-primary);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        .read-more-btn:hover {
+            color: var(--bg-primary);
+            border-color: var(--text-primary);
+        }
+
+        .read-more-btn:hover::before {
+            left: 0;
+        }
+
+        .read-more-btn.hidden {
+            display: none;
+        }
+
+        .extended-content {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.8s ease, opacity 0.6s ease 0.2s;
+        }
+
+        .extended-content.visible {
+            max-height: none;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <nav class="right-sidebar">
+            <a href="methodology.html" class="nav-link">Methodology</a>
+            <a href="ratings.html" class="nav-link">Ratings</a>
+            <a href="https://github.com/Octave-byte/defiriskalliance" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
+        </nav>
+
+        <main class="main-content">
+            <div class="logo-container">
+                <img src="assets/logo.png" alt="DeFi Risk Alliance" class="logo">
+            </div>
+
+            <div id="content"></div>
+        </main>
+    </div>
+
+    <script>
+        fetch('content.md')
+            .then(response => response.text())
+            .then(markdown => {
+                const parts = markdown.split(/\n---\n/);
+                const introMd = parts[0];
+                const restMd = parts.slice(1).join('\n---\n');
+
+                const introHtml = marked.parse(introMd);
+                const restHtml = marked.parse(restMd);
+
+                const contentEl = document.getElementById('content');
+                contentEl.innerHTML = `
+                    <div class="charter-intro">${introHtml}</div>
+                    <div class="read-more-container">
+                        <button class="read-more-btn" onclick="showMore()">Read More</button>
+                    </div>
+                    <div class="extended-content" id="extendedContent">${restHtml}</div>
+                `;
+            })
+            .catch(err => {
+                console.error('Error loading content:', err);
+                document.getElementById('content').innerHTML = '<p>Error loading content. Please refresh the page.</p>';
+            });
+
+        function showMore() {
+            const btn = document.querySelector('.read-more-btn');
+            const content = document.getElementById('extendedContent');
+
+            btn.classList.add('hidden');
+            content.classList.add('visible');
+
+            setTimeout(() => {
+                content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    </script>
+</body>
+</html>

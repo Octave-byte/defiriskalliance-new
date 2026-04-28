@@ -1,209 +1,98 @@
-"""
-Tests for score providers.
-"""
+"""Provider adapter tests with stubbed HTTP responses."""
 
-import pytest
-from methodology import Asset, Protocol, Market, Vault, Oracle
-from providers import StablewatchProvider, CredoraProvider, ParticulaProvider
+from __future__ import annotations
 
-
-def test_stablewatch_capabilities():
-    """Test stablewatch provider capabilities."""
-    provider = StablewatchProvider()
-    
-    assert provider.name == "stablewatch"
-    caps = provider.capabilities
-    assert caps['assets'] == True
-    assert caps['protocols'] == True
-    assert caps['oracles'] == False
-    assert caps['markets'] == False
-    assert caps['vaults'] == False
+from methodology import StrategyContext
+from methodology.criteria import all_criterion_ids
+from providers import DefiscanRater, PharosRater, PhilidorRater, WebacyRater, XerberusRater
 
 
-def test_stablewatch_asset_scoring():
-    """Test stablewatch asset scoring."""
-    provider = StablewatchProvider()
-    
-    asset = Asset(
-        chain_id=1,
-        contract_address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        creditworthiness=0.9, peg_performance=0.95, market_confidence=0.9,
-        reserves_backing=0.95, regulatory_status=0.8, smart_contract_audits=0.9,
-        custody_safety=0.85, complexity=0.7, reserve_verifiability=0.9,
-        custodian_track_record=0.85, user_entitlement_definition=0.9
+def test_supported_criteria_subset_of_registry():
+    valid = all_criterion_ids()
+    for rater in (
+        XerberusRater(),
+        PharosRater(),
+        PhilidorRater(),
+        WebacyRater(),
+        DefiscanRater(),
+    ):
+        sup = rater.supported_criteria()
+        assert sup, f"{rater.name} declares no criteria"
+        assert sup <= valid, f"{rater.name} declares unknown criteria"
+
+
+def test_defiscan_known_market_reaches_stage_one_ops():
+    ctx = StrategyContext(mode="C", defiscan_market_slug="aave-v3")
+    atts = DefiscanRater().attest(ctx)
+    assert any(a.criterion_id == "market.operations.s1.timelock_24h" and a.verdict == "verified" for a in atts)
+
+
+def test_defiscan_unknown_slug_yields_no_attestations():
+    ctx = StrategyContext(mode="C", defiscan_market_slug="not-a-real-protocol")
+    assert DefiscanRater().attest(ctx) == []
+
+
+def test_xerberus_uses_cache_when_present():
+    ctx = StrategyContext(
+        mode="A",
+        xerberus_asset_symbol="USDC",
+        xerberus_protocol_slug="aave-v3",
     )
-    
-    score = provider.score_asset(asset)
-    assert 0 <= score <= 1
-
-
-def test_stablewatch_protocol_scoring():
-    """Test stablewatch protocol scoring."""
-    provider = StablewatchProvider()
-    
-    protocol = Protocol(
-        chain_id=1,
-        contract_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-        version="v3",
-        audits=0.9, hacks=0.1, bug_bounty=0.8
+    ctx._cache["xerberus"] = {
+        "assets": {
+            "USDC": {"domain_scores": {"regulatory": 0.85, "valuation": 0.5}},
+        },
+        "protocols": {
+            "aave-v3": {"domain_scores": {"security": 0.75, "governance": 0.45, "economics": 0.2}},
+        },
+    }
+    atts = XerberusRater().attest(ctx)
+    by_id = {(a.criterion_id, a.verdict) for a in atts}
+    assert ("asset.operations.s2.regulated_issuer", "verified") in by_id
+    assert ("asset.strategy_economics.s1.collateral_adequate", "verified") in by_id
+    assert ("market.security.s2.lindy_3y", "verified") in by_id
+    assert any(
+        a.criterion_id.startswith("market.strategy_economics.s1") and a.verdict == "violated"
+        for a in atts
     )
-    score = provider.score_protocol(protocol)
-    assert 0 <= score <= 1
 
 
-def test_stablewatch_unsupported_segments():
-    """Test that stablewatch raises errors for unsupported segments."""
-    provider = StablewatchProvider()
-    
-    oracle = Oracle(hardcoded_oracle=0.8, vendor_config_uncertainty=0.3)
-    
-    with pytest.raises(NotImplementedError):
-        provider.score_oracle(oracle)
-
-
-def test_credora_capabilities():
-    """Test credora provider capabilities."""
-    provider = CredoraProvider()
-    
-    assert provider.name == "credora"
-    caps = provider.capabilities
-    assert caps['assets'] == True
-    assert caps['protocols'] == True
-    assert caps['markets'] == True
-    assert caps['vaults'] == True
-    assert caps['oracles'] == False
-
-
-def test_credora_market_scoring():
-    """Test credora market scoring."""
-    provider = CredoraProvider()
-    
-    asset = Asset(
-        chain_id=1,
-        contract_address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        creditworthiness=0.9, peg_performance=0.95, market_confidence=0.9,
-        reserves_backing=0.95, regulatory_status=0.8, smart_contract_audits=0.9,
-        custody_safety=0.85, complexity=0.7, reserve_verifiability=0.9,
-        custodian_track_record=0.85, user_entitlement_definition=0.9
+def test_philidor_reads_cached_payload():
+    ctx = StrategyContext(
+        mode="A",
+        philidor_network="ethereum",
+        vault_address="0xVAULT",
     )
-    
-    protocol = Protocol(
-        chain_id=1,
-        contract_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-        version="v3",
-        audits=0.9, hacks=0.1, bug_bounty=0.8
-    )
-    oracle = Oracle(hardcoded_oracle=0.9, vendor_config_uncertainty=0.2)
-    
-    market = Market(
-        chain_id=1,
-        contract_address="0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c",
-        share=1.0, liquidity=0.9, volatility=0.3, leverage=0.5,
-        second_order_effect=0.4, asset=asset, protocol=protocol, oracle=oracle
-    )
-    
-    score = provider.score_market(market)
-    assert 0 <= score <= 1
+    ctx._cache["philidor:ethereum:0xVAULT"] = {
+        "risk_vectors": {
+            "platform": {"score": 9.0, "details": {"strategyScore": 6.0}},
+            "control": {"score": 7.0},
+        }
+    }
+    atts = PhilidorRater().attest(ctx)
+    by_id = {(a.criterion_id, a.verdict) for a in atts}
+    assert ("vault.security.s2.lindy_1y", "verified") in by_id
+    assert ("vault.operations.s1.timelock_24h", "verified") in by_id
+    assert ("vault.strategy_economics.s1.simple_strategy", "verified") in by_id
+    assert ("vault.strategy_economics.s2.proven_track_record", "verified") not in by_id
 
 
-def test_credora_vault_scoring():
-    """Test credora vault scoring."""
-    provider = CredoraProvider()
-    
-    asset = Asset(
-        chain_id=1,
-        contract_address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        creditworthiness=0.9, peg_performance=0.95, market_confidence=0.9,
-        reserves_backing=0.95, regulatory_status=0.8, smart_contract_audits=0.9,
-        custody_safety=0.85, complexity=0.7, reserve_verifiability=0.9,
-        custodian_track_record=0.85, user_entitlement_definition=0.9
-    )
-    
-    market = Market(
-        chain_id=1,
-        contract_address="0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c",
-        share=1.0, liquidity=0.9, volatility=0.3, leverage=0.5,
-        second_order_effect=0.4, asset=asset,
-        protocol=Protocol(
-            chain_id=1,
-            contract_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-            version="v3",
-            audits=0.9, hacks=0.1, bug_bounty=0.8
-        ),
-        oracle=Oracle(hardcoded_oracle=0.9, vendor_config_uncertainty=0.2)
-    )
-    
-    vault = Vault(
-        markets=[market],
-        protocol_score=0.85, liquidity_score=0.9, concentration_score=0.7,
-        governance_structure=0.8, curator_reputation=0.85, timelock=0.9
-    )
-    
-    score = provider.score_vault(vault)
-    assert 0 <= score <= 1
+def test_webacy_high_risk_files_violation(monkeypatch):
+    monkeypatch.setenv("WEBACY_API_KEY", "x")
+    ctx = StrategyContext(mode="B", vault_address="0xabc0000000000000000000000000000000000000", webacy_chain="eth")
+    ctx._cache["webacy:eth:0xabc0000000000000000000000000000000000000"] = {
+        "risk": {"overallRisk": 90}
+    }
+    atts = WebacyRater().attest(ctx)
+    assert atts and all(a.verdict == "violated" for a in atts)
 
 
-def test_particula_capabilities():
-    """Test particula provider capabilities."""
-    provider = ParticulaProvider()
-    
-    assert provider.name == "particula"
-    caps = provider.capabilities
-    assert caps['assets'] == True
-    assert caps['protocols'] == True
-    assert caps['oracles'] == False
-    assert caps['markets'] == False
-    assert caps['vaults'] == False
-
-
-def test_provider_integration():
-    """Test provider integration with scorer."""
-    from methodology import VaultScorer
-    
-    scorer = VaultScorer()
-    
-    # Register providers
-    scorer.register_provider(
-        StablewatchProvider(),
-        weights={'assets': 0.5, 'protocols': 0.5}
-    )
-    
-    scorer.register_provider(
-        CredoraProvider(),
-        weights={'assets': 0.5, 'protocols': 0.5, 'markets': 1.0, 'vaults': 1.0}
-    )
-    
-    # Create test vault
-    asset = Asset(
-        chain_id=1,
-        contract_address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        creditworthiness=0.9, peg_performance=0.95, market_confidence=0.9,
-        reserves_backing=0.95, regulatory_status=0.8, smart_contract_audits=0.9,
-        custody_safety=0.85, complexity=0.7, reserve_verifiability=0.9,
-        custodian_track_record=0.85, user_entitlement_definition=0.9
-    )
-    
-    market = Market(
-        chain_id=1,
-        contract_address="0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c",
-        share=1.0, liquidity=0.9, volatility=0.3, leverage=0.5,
-        second_order_effect=0.4, asset=asset,
-        protocol=Protocol(
-            chain_id=1,
-            contract_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-            version="v3",
-            audits=0.9, hacks=0.1, bug_bounty=0.8
-        ),
-        oracle=Oracle(hardcoded_oracle=0.9, vendor_config_uncertainty=0.2)
-    )
-    
-    vault = Vault(
-        markets=[market],
-        protocol_score=0.85, liquidity_score=0.9, concentration_score=0.7,
-        governance_structure=0.8, curator_reputation=0.85, timelock=0.9
-    )
-    
-    score = scorer.calculate_vault_score(vault)
-    assert 0 <= score <= 1
-
-
+def test_webacy_low_risk_verifies(monkeypatch):
+    monkeypatch.setenv("WEBACY_API_KEY", "x")
+    ctx = StrategyContext(mode="B", vault_address="0xabc0000000000000000000000000000000000000", webacy_chain="eth")
+    ctx._cache["webacy:eth:0xabc0000000000000000000000000000000000000"] = {
+        "risk": {"overallRisk": 5}
+    }
+    atts = WebacyRater().attest(ctx)
+    assert atts
+    assert any(a.criterion_id == "vault.security.s2.multi_audit_bounty" and a.verdict == "verified" for a in atts)

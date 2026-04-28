@@ -1,358 +1,95 @@
-# Score Provider Participation Guide
+# Provider integration (DRA v3.0 engine)
 
-This guide explains how score providers can participate in the DeFi Vault scoring methodology.
+A provider observes a `StrategyContext` and emits a list of
+`CriterionAttestation` records. Each attestation is one provider's verdict on
+**one specific criterion id** from
+[`methodology/criteria.py`](methodology/criteria.py).
 
-## Overview
+## Contract
 
-Score providers contribute ratings for specific segments of the scoring methodology. Each provider has defined capabilities for which segments they can score.
-
-## Provider Capabilities
-
-| Provider | Assets | Protocols | Oracles | Markets | Vaults |
-|----------|--------|-----------|---------|---------|--------|
-| **stablewatch** | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **particula** | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **credora** | ✅ | ✅ | ❌ | ✅ | ✅ |
-| **exponential.fi** | [TBD] | [TBD] | [TBD] | [TBD] | [TBD] |
-| **vaults.fyi** | [TBD] | [TBD] | [TBD] | [TBD] | [TBD] |
-
-## Implementation Steps
-
-### 1. Create Your Provider Module
-
-Create a new file in the `providers/` directory following the naming convention: `your_provider_name.py`
-
-### 2. Implement the Provider Interface
-
-Your provider must implement the `ScoreProvider` interface:
+Implement a subclass of `providers.base.RaterBase`:
 
 ```python
-from methodology.providers import ScoreProvider
-from methodology.models import Asset, Protocol, Oracle, Market, Vault
+class RaterBase:
+    name: str
 
-class YourProvider(ScoreProvider):
-    """Your provider implementation"""
-    
-    @property
-    def name(self) -> str:
-        return "your_provider_name"
-    
-    @property
-    def capabilities(self) -> dict:
-        return {
-            'assets': True,      # Can you score assets?
-            'protocols': True,   # Can you score protocols?
-            'oracles': False,    # Can you score oracles?
-            'markets': False,    # Can you score markets?
-            'vaults': False      # Can you score vaults?
-        }
-    
-    def score_asset(self, asset: Asset) -> float:
-        """Score an asset (0-1)"""
-        # Your scoring logic here
-        pass
-    
-    def score_protocol(self, protocol: Protocol) -> float:
-        """Score a protocol (0-1)"""
-        # Your scoring logic here
-        pass
-    
-    # Implement only the methods for segments you can score
+    def attest(self, ctx: StrategyContext) -> list[CriterionAttestation]: ...
+    def supported_criteria(self) -> set[str]: ...
 ```
 
-### 3. Example: stablewatch Provider
+A `CriterionAttestation` has:
+
+- `layer` — `asset` | `market` | `vault`
+- `component` — `security` | `operations` | `strategy_economics`
+- `criterion_id` — must be a key in the criteria registry (`get_criterion(id)`).
+- `verdict` — `verified`, `violated`, or `unknown`.
+- `source` — the provider's name (engine fills this in if you leave it blank).
+- `evidence` — short human-readable string for transparency.
+
+`supported_criteria()` returns the subset of registry ids your provider can ever
+attest. It is **not** enforced by the engine, but operators rely on it to audit
+which provider covers which corner of the rubric.
+
+## Resolution rule
+
+For each criterion the engine applies the rule below — keep it in mind when
+deciding when to file a verdict:
+
+- ≥ 1 `verified` AND no `violated` → criterion is **satisfied**.
+- Any `violated` → criterion is **unsatisfied**, regardless of how many other
+  providers verify it.
+- No attestation, or only `unknown` → **unsatisfied** (opacity penalised).
+
+Use `verified` only when your data source actually supports the claim. Use
+`violated` to explicitly downgrade a cell. Avoid `unknown` unless you want to
+record presence-of-data for audit trails.
+
+## Mapping numeric signals
+
+Most upstream APIs return numeric scores. Define an explicit threshold table at
+the top of your adapter file and pass it through
+`providers._helpers.threshold_attestations`:
 
 ```python
-from methodology.providers import ScoreProvider
-from methodology.models import Asset, Protocol
+from providers._helpers import threshold_attestations
 
-class StablewatchProvider(ScoreProvider):
-    """Stablewatch provider - scores Assets and Protocols"""
-    
-    @property
-    def name(self) -> str:
-        return "stablewatch"
-    
-    @property
-    def capabilities(self) -> dict:
-        return {
-            'assets': True,
-            'protocols': True,
-            'oracles': False,
-            'markets': False,
-            'vaults': False
-        }
-    
-    def score_asset(self, asset: Asset) -> float:
-        """
-        Score an asset based on stablewatch methodology.
-        Returns a score between 0 and 1.
-        """
-        # Example: Evaluate asset based on reserves, peg performance, etc.
-        score = 0.0
-        
-        # Quality metrics (0.5 total weight)
-        score += asset.creditworthiness * 0.125
-        score += asset.peg_performance * 0.125
-        score += asset.market_confidence * 0.125
-        score += asset.reserves_backing * 0.125
-        
-        # Compliance (0.1 weight)
-        score += asset.regulatory_status * 0.1
-        
-        # Tech (0.2 weight)
-        score += asset.smart_contract_audits * 0.05
-        score += asset.custody_safety * 0.1
-        score += asset.complexity * 0.05
-        
-        # Transparency (0.2 weight)
-        score += asset.reserve_verifiability * 0.1
-        score += asset.custodian_track_record * 0.05
-        score += asset.user_entitlement_definition * 0.05
-        
-        return min(1.0, max(0.0, score))
-    
-    def score_protocol(self, protocol: Protocol) -> float:
-        """
-        Score a protocol based on stablewatch methodology.
-        Returns a score between 0 and 1.
-        """
-        # Example: Evaluate protocol based on audits, hacks, bug bounty
-        score = (
-            protocol.audits * 0.4 +
-            protocol.hacks * 0.3 +
-            protocol.bug_bounty * 0.3
-        )
-        
-        return min(1.0, max(0.0, score))
-```
+S1_THRESHOLD = 0.4
+S2_THRESHOLD = 0.7
 
-### 4. Example: credora Provider
-
-```python
-from methodology.providers import ScoreProvider
-from methodology.models import Asset, Protocol, Market, Vault
-
-class CredoraProvider(ScoreProvider):
-    """Credora provider - scores Assets, Protocols, Markets, and Vaults"""
-    
-    @property
-    def name(self) -> str:
-        return "credora"
-    
-    @property
-    def capabilities(self) -> dict:
-        return {
-            'assets': True,
-            'protocols': True,
-            'oracles': False,
-            'markets': True,
-            'vaults': True
-        }
-    
-    def score_asset(self, asset: Asset) -> float:
-        """Credora's asset scoring methodology"""
-        # Your implementation
-        pass
-    
-    def score_protocol(self, protocol: Protocol) -> float:
-        """Credora's protocol scoring methodology"""
-        # Your implementation
-        pass
-    
-    def score_market(self, market: Market) -> float:
-        """Credora's market scoring methodology"""
-        # Your implementation
-        pass
-    
-    def score_vault(self, vault: Vault) -> float:
-        """Credora's vault scoring methodology"""
-        # Your implementation
-        pass
-```
-
-## Integration with Scoring System
-
-### Registering Your Provider
-
-```python
-from methodology.scoring import VaultScorer
-from providers.your_provider import YourProvider
-
-# Create scorer
-scorer = VaultScorer()
-
-# Register your provider with weights
-scorer.register_provider(
-    YourProvider(),
-    weights={
-        'assets': 0.3,      # 30% weight for asset scores
-        'protocols': 0.2,   # 20% weight for protocol scores
-        # ... other segments
-    }
+threshold_attestations(
+    domain_score,
+    layer="market",
+    component="security",
+    s1_criteria=("market.security.s1.audited", "market.security.s1.lindy_1y"),
+    s2_criteria=("market.security.s2.multi_audit_bounty", "market.security.s2.lindy_3y"),
+    s1_threshold=S1_THRESHOLD,
+    s2_threshold=S2_THRESHOLD,
+    source="my_provider",
+    evidence=f"my_provider.security={domain_score}",
 )
 ```
 
-### Using Multiple Providers
+Above `s2_threshold` every Stage 1 and Stage 2 criterion gets a `verified`
+verdict; between `s1_threshold` and `s2_threshold` only Stage 1 is verified;
+below `s1_threshold` Stage 1 criteria get an explicit `violated` (opt-out via
+`violate_below_s1=False`).
 
-```python
-from methodology.scoring import VaultScorer
-from providers.stablewatch import StablewatchProvider
-from providers.credora import CredoraProvider
+## Caching
 
-scorer = VaultScorer()
+`ctx._cache` is a per-run dict your adapter can use to avoid duplicate HTTP
+requests. Use a key that includes the upstream URL or identifying parameters.
 
-# Register multiple providers with different weights
-scorer.register_provider(
-    StablewatchProvider(),
-    weights={
-        'assets': 0.4,
-        'protocols': 0.3
-    }
-)
+## Environment
 
-scorer.register_provider(
-    CredoraProvider(),
-    weights={
-        'assets': 0.3,
-        'protocols': 0.2,
-        'markets': 0.5,
-        'vaults': 0.4
-    }
-)
+Missing API keys must produce an empty attestation list, never a hard failure.
+See [`.env.example`](.env.example).
 
-# Calculate score (automatically aggregates provider scores)
-score = scorer.calculate_vault_score(vault)
-```
+## Worked example
 
-## Data Models
+`examples/provider_integration.py` shows a minimal vault-monitor provider that
+verifies three criteria from local data only.
 
-### Asset Model
+## Tests
 
-```python
-Asset(
-    # Identification
-    chain_id: int,            # Chain ID (e.g., 1 for Ethereum mainnet, 137 for Polygon)
-    contract_address: str,    # Contract address or ID of the asset
-    
-    # Quality metrics
-    creditworthiness: float,        # 0-1
-    peg_performance: float,         # 0-1
-    market_confidence: float,       # 0-1
-    reserves_backing: float,        # 0-1
-    
-    # Compliance
-    regulatory_status: float,       # 0-1
-    
-    # Tech
-    smart_contract_audits: float,   # 0-1
-    custody_safety: float,          # 0-1
-    complexity: float,              # 0-1
-    
-    # Transparency
-    reserve_verifiability: float,   # 0-1
-    custodian_track_record: float,  # 0-1
-    user_entitlement_definition: float  # 0-1
-)
-```
-
-### Protocol Model
-
-```python
-Protocol(
-    # Identification
-    chain_id: int,            # Chain ID where the protocol is deployed
-    contract_address: str,    # Contract address of the protocol
-    version: str,             # Protocol version (e.g., "v2", "v3", "1.0.0")
-    
-    audits: float,      # 0-1
-    hacks: float,       # 0-1 (lower is better, may need inversion)
-    bug_bounty: float   # 0-1
-)
-```
-
-### Oracle Model
-
-```python
-Oracle(
-    hardcoded_oracle: float,           # 0-1
-    vendor_config_uncertainty: float   # 0-1
-)
-```
-
-### Market Model
-
-```python
-Market(
-    # Identification
-    chain_id: int,            # Chain ID where the market exists
-    contract_address: str,    # Contract address or ID of the market
-    
-    share: float,              # Share in vault (0-1, should sum to 1)
-    liquidity: float,          # 0-1
-    volatility: float,         # 0-1
-    leverage: float,           # 0-1
-    second_order_effect: float, # 0-1
-    asset: Asset,
-    protocol: Protocol,
-    oracle: Oracle
-)
-```
-
-### Vault Model
-
-```python
-Vault(
-    markets: List[Market],
-    protocol_score: float,         # 0-1
-    liquidity_score: float,        # 0-1
-    concentration_score: float,    # 0-1
-    governance_structure: float,   # 0-1
-    curator_reputation: float,     # 0-1
-    timelock: float                # 0-1
-)
-```
-
-## Testing Your Provider
-
-Create tests in `tests/test_providers.py`:
-
-```python
-import pytest
-from providers.your_provider import YourProvider
-from methodology.models import Asset, Protocol
-
-def test_your_provider_asset_scoring():
-    provider = YourProvider()
-    
-    asset = Asset(
-        creditworthiness=0.8,
-        peg_performance=0.9,
-        # ... other fields
-    )
-    
-    score = provider.score_asset(asset)
-    assert 0 <= score <= 1
-
-def test_your_provider_capabilities():
-    provider = YourProvider()
-    caps = provider.capabilities
-    
-    assert caps['assets'] == True
-    assert caps['protocols'] == True
-    # ... verify capabilities
-```
-
-## Best Practices
-
-1. **Score Normalization**: Always ensure scores are between 0 and 1
-2. **Documentation**: Document your scoring methodology clearly
-3. **Transparency**: Make your scoring logic transparent and auditable
-4. **Consistency**: Use consistent scoring scales across all segments
-5. **Error Handling**: Handle edge cases and invalid inputs gracefully
-
-## Questions?
-
-For questions about provider participation, please open an issue in this repository.
-
-
+Add fixtures under `tests/` and stub `ctx._cache` to bypass HTTP. The existing
+`tests/test_providers.py` shows the pattern.

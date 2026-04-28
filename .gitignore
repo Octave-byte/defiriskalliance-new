@@ -32,6 +32,7 @@ ENV/
 *.swp
 *.swo
 *~
+*.code-workspace
 
 # Testing
 .pytest_cache/
@@ -42,4 +43,8 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-
+# Local secrets — never commit any .env file
+.env
+.env.*
+.env.local
+.env.*.local
