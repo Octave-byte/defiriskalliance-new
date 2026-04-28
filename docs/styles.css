@@ -69,7 +69,9 @@ body::before {
 }
 
 .right-sidebar {
-    position: fixed;
+    /* absolute (not fixed) so the nav scrolls away with the content
+       on desktop; the mobile breakpoint below re-pins it to the bottom. */
+    position: absolute;
     right: 40px;
     top: 80px;
     display: flex;
